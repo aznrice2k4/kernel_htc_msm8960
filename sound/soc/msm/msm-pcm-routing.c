@@ -54,6 +54,8 @@ struct msm_pcm_routing_bdai_data {
 static struct mutex routing_lock;
 
 static int fm_switch_enable;
+static int srs_alsa_ctrl_ever_called;
+
 #define INT_RX_VOL_MAX_STEPS 0x2000
 #define INT_RX_VOL_GAIN 0x2000
 
@@ -123,6 +125,12 @@ static int srs_port_id = -1;
 
 static void srs_send_params(int port_id, unsigned int techs,
 		int param_block_idx) {
+
+	/* only send commands to dsp if srs alsa ctrl was used
+	   at least one time */
+	if (!srs_alsa_ctrl_ever_called)
+		return;
+
 	pr_debug("SRS %s: called, port_id = %d, techs flags = %u,"
 			" paramblockidx %d", __func__, port_id, techs,
 			param_block_idx);
@@ -1541,6 +1549,11 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 				0, 0, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AUX_PCM_RX", "AUX PCM Playback", 0, 0, 0, 0),
 	SND_SOC_DAPM_AIF_IN("AUX_PCM_TX", "AUX PCM Capture", 0, 0, 0, 0),
+	SND_SOC_DAPM_AIF_IN("VOICE_STUB_DL", "VOICE_STUB Playback", 0, 0, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("VOICE_STUB_UL", "VOICE_STUB Capture", 0, 0, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("STUB_RX", "Stub Playback", 0, 0, 0, 0),
+	SND_SOC_DAPM_AIF_IN("STUB_TX", "Stub Capture", 0, 0, 0, 0),
+
 	/* Switch Definitions */
 	SND_SOC_DAPM_SWITCH("SLIMBUS_DL_HL", SND_SOC_NOPM, 0, 0,
 				&fm_switch_mixer_controls),
@@ -1751,6 +1764,8 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"AUXPCM_RX Port Mixer", "INT_SCO_TX", "INT_BT_SCO_TX"},
 //hTC---
 	{"AUX_PCM_RX", NULL, "AUXPCM_RX Port Mixer"},
+	{"STUB_RX", NULL, "VOICE_STUB_DL"},
+	{"VOICE_STUB_UL", NULL, "STUB_TX"},
 
 //hTC+++: AFE routing to BT SCO RX 
 	{"INTERNAL_BT_SCO_RX Port Mixer", "SLIM_0_TX", "SLIMBUS_0_TX"},
