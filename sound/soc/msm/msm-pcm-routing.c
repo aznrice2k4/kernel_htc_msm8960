@@ -1244,6 +1244,9 @@ static const struct snd_kcontrol_new sbus_0_rx_port_mixer_controls[] = {
 	SOC_SINGLE_EXT("AUX_PCM_UL_TX", MSM_BACKEND_DAI_SLIMBUS_0_RX,
 	MSM_BACKEND_DAI_AUXPCM_TX, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
+	SOC_SINGLE_EXT("MI2S_TX", MSM_BACKEND_DAI_SLIMBUS_0_RX,
+	MSM_BACKEND_DAI_MI2S_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
 };
 
 static const struct snd_kcontrol_new auxpcm_rx_port_mixer_controls[] = {
@@ -1270,6 +1273,18 @@ static const struct snd_kcontrol_new btsco_0_rx_port_mixer_controls[] = {
 	msm_routing_put_port_mixer),
 };
 //hTC---
+
+static const struct snd_kcontrol_new hdmi_rx_port_mixer_controls[] = {
+	SOC_SINGLE_EXT("MI2S_TX", MSM_BACKEND_DAI_HDMI_RX,
+	MSM_BACKEND_DAI_MI2S_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+};
+
+static const struct snd_kcontrol_new sec_i2s_rx_port_mixer_controls[] = {
+	SOC_SINGLE_EXT("MI2S_TX", MSM_BACKEND_DAI_SEC_I2S_RX,
+	MSM_BACKEND_DAI_MI2S_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+};
 
 static const struct snd_kcontrol_new fm_switch_mixer_controls =
 	SOC_SINGLE_EXT("Switch", SND_SOC_NOPM,
@@ -1556,9 +1571,13 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 		0, 0, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("INTFM_UL_HL", "INT_FM_HOSTLESS Capture",
 		0, 0, 0, 0),
+	SND_SOC_DAPM_AIF_IN("SEC_I2S_DL_HL", "SEC_I2S_RX_HOSTLESS Playback",
+		0, 0, 0, 0),
 	SND_SOC_DAPM_AIF_IN("AUXPCM_DL_HL", "AUXPCM_HOSTLESS Playback",
 		0, 0, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AUXPCM_UL_HL", "AUXPCM_HOSTLESS Capture",
+		0, 0, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MI2S_UL_HL", "MI2S_TX_HOSTLESS Capture",
 		0, 0, 0, 0),
 	/* Backend AIF */
 	/* Stream name equals to backend dai link stream name
@@ -1675,6 +1694,12 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 	SND_SOC_NOPM, 0, 0, btsco_0_rx_port_mixer_controls,
 	ARRAY_SIZE(btsco_0_rx_port_mixer_controls)),
 //hTC---
+	SND_SOC_DAPM_MIXER("HDMI_RX Port Mixer",
+	SND_SOC_NOPM, 0, 0, hdmi_rx_port_mixer_controls,
+	ARRAY_SIZE(hdmi_rx_port_mixer_controls)),
+	SND_SOC_DAPM_MIXER("SEC_I2S_RX Port Mixer",
+	SND_SOC_NOPM, 0, 0, sec_i2s_rx_port_mixer_controls,
+	ARRAY_SIZE(sec_i2s_rx_port_mixer_controls)),
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
@@ -1812,6 +1837,8 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"INTFM_UL_HL", NULL, "INT_FM_TX"},
 	{"AUX_PCM_RX", NULL, "AUXPCM_DL_HL"},
 	{"AUXPCM_UL_HL", NULL, "AUX_PCM_TX"},
+	{"MI2S_UL_HL", NULL, "MI2S_TX"},
+	{"SEC_I2S_RX", NULL, "SEC_I2S_DL_HL"},
 	{"SLIMBUS_0_RX Port Mixer", "INTERNAL_FM_TX", "INT_FM_TX"},
 	{"SLIMBUS_0_RX Port Mixer", "SLIM_0_TX", "SLIMBUS_0_TX"},
 	{"SLIMBUS_0_RX Port Mixer", "AUX_PCM_UL_TX", "AUX_PCM_TX"},
@@ -1831,6 +1858,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"INTERNAL_BT_SCO_RX Port Mixer", "AUX_PCM_UL_TX", "AUX_PCM_TX"},
 	{"INT_BT_SCO_RX", NULL, "INTERNAL_BT_SCO_RX Port Mixer"},
 //hTC---
+	{"HDMI_RX Port Mixer", "MI2S_TX", "MI2S_TX"},
+	{"HDMI", NULL, "HDMI_RX Port Mixer"},
+	
+	{"SEC_I2S_RX Port Mixer", "MI2S_TX", "MI2S_TX"},
+	{"SEC_I2S_RX", NULL, "SEC_I2S_RX Port Mixer"},
 };
 
 static int msm_pcm_routing_hw_params(struct snd_pcm_substream *substream,

@@ -32,6 +32,7 @@
 #define LPASS_BE_SEC_I2S_RX "(Backend) SECONDARY_I2S_RX"
 
 #define LPASS_BE_MI2S_RX "(Backend) MI2S_RX"
+#define LPASS_BE_MI2S_TX "(Backend) MI2S_TX"
 #define LPASS_BE_STUB_RX "(Backend) STUB_RX"
 #define LPASS_BE_STUB_TX "(Backend) STUB_TX"
 /* For multimedia front-ends, asm session is allocated dynamically.
@@ -75,6 +76,7 @@ enum {
 	MSM_BACKEND_DAI_INCALL_RECORD_RX,
 	MSM_BACKEND_DAI_INCALL_RECORD_TX,
 	MSM_BACKEND_DAI_MI2S_RX,
+	MSM_BACKEND_DAI_MI2S_TX,
 	MSM_BACKEND_DAI_SEC_I2S_RX,
 	MSM_BACKEND_DAI_MAX,
 };
