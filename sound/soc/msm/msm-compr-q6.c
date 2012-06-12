@@ -143,7 +143,6 @@ static void compr_event_handler(uint32_t opcode,
 			break;
 		} else
 			atomic_set(&prtd->pending_buffer, 0);
-
 		if (runtime->status->hw_ptr >= runtime->control->appl_ptr)
 			break;
 		buf = prtd->audio_client->port[IN].buf;
@@ -284,7 +283,8 @@ static int msm_compr_playback_prepare(struct snd_pcm_substream *substream)
 			compr->info.codec_param.codec.bit_rate/8;
 		wma_cfg.block_align = compr->info.codec_param.codec.align;
 		wma_cfg.valid_bits_per_sample =
-		compr->info.codec_param.codec.options.wma.bits_per_sample;
+		compr->info.codec_param.codec\
+			.options.wma.bits_per_sample;
 		wma_cfg.ch_mask =
 			compr->info.codec_param.codec.options.wma.channelmask;
 		wma_cfg.encode_opt =
@@ -340,7 +340,7 @@ static int msm_compr_trigger(struct snd_pcm_substream *substream, int cmd)
 		SND_AUDIOCODEC_AC3_PASS_THROUGH) {
 		msm_pcm_routing_reg_psthr_stream(
 		soc_prtd->dai_link->be_id,
-		prtd->session_id, substream->stream);
+		prtd->session_id, substream->stream, 1);
 	}
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
@@ -350,6 +350,12 @@ static int msm_compr_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		pr_debug("[AUD]%s: SNDRV_PCM_TRIGGER_STOP\n", __func__);
+		if (compr->info.codec_param.codec.id ==
+				SND_AUDIOCODEC_AC3_PASS_THROUGH) {
+			msm_pcm_routing_reg_psthr_stream(
+				soc_prtd->dai_link->be_id,
+				prtd->session_id, substream->stream, 0);
+		}			
 		atomic_set(&prtd->start, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -525,8 +531,11 @@ static int msm_compr_playback_close(struct snd_pcm_substream *substream)
 	q6asm_audio_client_buf_free_contiguous(dir,
 				prtd->audio_client);
 
-	msm_pcm_routing_dereg_phy_stream(soc_prtd->dai_link->be_id,
-	SNDRV_PCM_STREAM_PLAYBACK);
+	if (!(compr->info.codec_param.codec.id ==
+			SND_AUDIOCODEC_AC3_PASS_THROUGH))
+		msm_pcm_routing_dereg_phy_stream(
+			soc_prtd->dai_link->be_id,
+			SNDRV_PCM_STREAM_PLAYBACK);
 	q6asm_audio_client_free(prtd->audio_client);
 	kfree(prtd);
 	pr_debug("[AUD] %s ---\n", __func__);
