@@ -2363,6 +2363,12 @@ config AUDIO_USAGE_FOR_POWER_CONSUMPTION
 	bool "AUDIO_USAGE_FOR_POWER_CONSUMPTION"
 	default n
 
+config CPU_VOLTAGE_TABLE
+	bool "Enable CPU Voltage Table via sysfs for adjustements"
+	default n
+	help
+	  Krait User Votlage Control
+
 config ANDROID_RAM_CONSOLE_APPEND_PMIC_STATUS_BITS
 	bool "Append PMIC status bits to end of /proc/last_kmsg"
 	default n
