@@ -1696,7 +1696,7 @@ static int htc_headset_mgr_probe(struct platform_device *pdev)
 		goto err_create_detect_work_queue;
 	}
 
-	button_wq = create_workqueue("button");
+	button_wq = create_singlethread_workqueue("button");
 	if (button_wq  == NULL) {
 		ret = -ENOMEM;
 		HS_ERR("Failed to create button workqueue");
