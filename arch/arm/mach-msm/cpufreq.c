@@ -286,7 +286,7 @@ static ssize_t store_mfreq(struct sysdev_class *class,
 
 static SYSDEV_CLASS_ATTR(mfreq, 0200, NULL, store_mfreq);
 
-static struct freq_attr *msm_freq_attr[] = {
+static struct freq_attr *msm_cpufreq_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	NULL,
 };
@@ -300,7 +300,7 @@ static struct cpufreq_driver msm_cpufreq_driver = {
 	.suspend	= msm_cpufreq_suspend,
 	.resume		= msm_cpufreq_resume,
 	.name		= "msm",
-	.attr		= msm_freq_attr,
+	.attr		= msm_cpufreq_attr,
 };
 
 static int __init msm_cpufreq_register(void)
