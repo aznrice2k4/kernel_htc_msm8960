@@ -1854,7 +1854,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		if (!dbs_enable)
 			sysfs_remove_group(cpufreq_global_kobject,
 					   &dbs_attr_group);
-		
+		mutex_unlock(&dbs_mutex);
 
 		break;
 
