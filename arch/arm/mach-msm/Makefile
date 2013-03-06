@@ -315,7 +315,6 @@ obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-keypad.o board-sapphire-panel.o
 obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-mmc.o board-sapphire-wifi.o
 obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-rfkill.o msm_vibrator.o
 
-obj-$(CONFIG_FORCE_FAST_CHARGE) += fastchg.o
 obj-$(CONFIG_MACH_ELITE) += board-elite.o board-elite-regulator.o board-elite-gpio.o
 obj-$(CONFIG_MACH_ELITE) += board-elite-keypad.o
 obj-$(CONFIG_MACH_ELITE) += board-elite-audio.o
