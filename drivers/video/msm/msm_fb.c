@@ -186,16 +186,19 @@ static void msm_fb_set_bl_brightness(struct led_classdev *led_cdev,
 	struct msm_fb_data_type *mfd = dev_get_drvdata(led_cdev->dev->parent);
 	int bl_lvl;
 
-	if (value > MAX_BACKLIGHT_BRIGHTNESS)
-		value = MAX_BACKLIGHT_BRIGHTNESS;
+	/* This maps android backlight level 1 to 255 into
+	   driver backlight level bl_min to bl_max with rounding
+	   and maps backlight level 0 to 0. */
+	if (value <= 0)
+		bl_lvl = 0;
+	else if (value >= MAX_BACKLIGHT_BRIGHTNESS)
+		bl_lvl = mfd->panel_info.bl_max;
+	else
+		bl_lvl = mfd->panel_info.bl_min + ((value - 1) * 2 *
+			(mfd->panel_info.bl_max - mfd->panel_info.bl_min) +
+			MAX_BACKLIGHT_BRIGHTNESS - 1) /
+			(MAX_BACKLIGHT_BRIGHTNESS - 1) / 2;
 
-	/* This maps android backlight level 0 to 255 into
-	   driver backlight level 0 to bl_max with rounding */
-	bl_lvl = (2 * value * mfd->panel_info.bl_max + MAX_BACKLIGHT_BRIGHTNESS)
-		/(2 * MAX_BACKLIGHT_BRIGHTNESS);
-
-	if (!bl_lvl && value)
-		bl_lvl = 1;
 	down(&mfd->sem);
 	msm_fb_set_backlight(mfd, bl_lvl);
 	up(&mfd->sem);
@@ -548,6 +551,7 @@ static int msm_fb_suspend_sub(struct msm_fb_data_type *mfd)
 	mfd->suspend.sw_refreshing_enable = mfd->sw_refreshing_enable;
 	mfd->suspend.op_enable = mfd->op_enable;
 	mfd->suspend.panel_power_on = mfd->panel_power_on;
+	mfd->suspend.op_suspend = true;
 
 	if (mfd->op_enable) {
 		ret =
@@ -615,6 +619,8 @@ static int msm_fb_resume_sub(struct msm_fb_data_type *mfd)
 		if (ret)
 			MSM_FB_INFO("msm_fb_resume: can't turn on display!\n");
 	}
+
+	mfd->suspend.op_suspend = false;
 
 	return ret;
 }
@@ -1757,22 +1763,6 @@ int msm_fb_signal_timeline(struct msm_fb_data_type *mfd)
 	return 0;
 }
 
-static void bl_workqueue_handler(struct work_struct *work)
-{
-	struct msm_fb_data_type *mfd = container_of(to_delayed_work(work),
-				struct msm_fb_data_type, backlight_worker);
-	struct msm_fb_panel_data *pdata = mfd->pdev->dev.platform_data;
-
-	if ((pdata) && (pdata->set_backlight) && (!bl_updated)) {
-		down(&mfd->sem);
-		mfd->bl_level = unset_bl_level;
-		pdata->set_backlight(mfd);
-		bl_level_old = unset_bl_level;
-		bl_updated = 1;
-		up(&mfd->sem);
-	}
-}
-
 DEFINE_SEMAPHORE(msm_fb_pan_sem);
 static int msm_fb_pan_idle(struct msm_fb_data_type *mfd)
 {
@@ -1860,6 +1850,22 @@ static int msm_fb_pan_display_ex(struct fb_info *info,
 	if (wait_for_finish)
 		msm_fb_pan_idle(mfd);
 	return ret;
+}
+
+static void bl_workqueue_handler(struct work_struct *work)
+{
+	struct msm_fb_data_type *mfd = container_of(to_delayed_work(work),
+				struct msm_fb_data_type, backlight_worker);
+	struct msm_fb_panel_data *pdata = mfd->pdev->dev.platform_data;
+
+	if ((pdata) && (pdata->set_backlight) && (!bl_updated)) {
+		down(&mfd->sem);
+		mfd->bl_level = unset_bl_level;
+		pdata->set_backlight(mfd);
+		bl_level_old = unset_bl_level;
+		bl_updated = 1;
+		up(&mfd->sem);
+	}
 }
 
 static int msm_fb_pan_display(struct fb_var_screeninfo *var,
