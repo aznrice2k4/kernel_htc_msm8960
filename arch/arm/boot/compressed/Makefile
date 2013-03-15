@@ -86,6 +86,22 @@ endif
 
 SEDFLAGS	= s/TEXT_START/$(ZTEXTADDR)/;s/BSS_START/$(ZBSSADDR)/
 
+# Borrowed libfdt files for the ATAG compatibility mode
+
+libfdt    := fdt_rw.c fdt_ro.c fdt_wip.c fdt.c
+libfdt_hdrs  := fdt.h libfdt.h libfdt_internal.h
+
+libfdt_objs  := $(addsuffix .o, $(basename $(libfdt)))
+
+$(addprefix $(obj)/,$(libfdt) $(libfdt_hdrs)): $(obj)/%: $(srctree)/scripts/dtc/libfdt/%
+	$(call cmd,shipped)
+
+$(addprefix $(obj)/,$(libfdt_objs) atags_to_fdt.o): \
+  $(addprefix $(obj)/,$(libfdt_hdrs))
+
+ifeq ($(CONFIG_ARM_ATAG_DTB_COMPAT),y)
+OBJS  += $(libfdt_objs) atags_to_fdt.o
+endif
 suffix_$(CONFIG_KERNEL_GZIP) := gzip
 suffix_$(CONFIG_KERNEL_LZO)  := lzo
 suffix_$(CONFIG_KERNEL_LZMA) := lzma
@@ -93,10 +109,10 @@ suffix_$(CONFIG_KERNEL_XZ)   := xzkern
 
 targets       := vmlinux vmlinux.lds \
 		 piggy.$(suffix_y) piggy.$(suffix_y).o \
-		font.o font.c head.o misc.o decompress.o $(OBJS)
+		lib1funcs.o lib1funcs.S font.o font.c head.o misc.o $(OBJS)
 
 # Make sure files are removed during clean
-extra-y       += piggy.gzip piggy.lzo piggy.lzma piggy.xzkern lib1funcs.S ashldi3.S
+extra-y       += piggy.gzip piggy.lzo piggy.lzma piggy.xzkern lib1funcs.S $(libfdt) $(libfdt_hdrs)
 
 ifeq ($(CONFIG_FUNCTION_TRACER),y)
 ORIG_CFLAGS := $(KBUILD_CFLAGS)
@@ -105,6 +121,11 @@ endif
 
 ccflags-y := -fpic -fno-builtin
 asflags-y := -Wa,-march=all
+
+# Supply kernel BSS size to the decompressor via a linker symbol.
+SIZEBIN := $(if $(shell which $(CROSS_COMPILE)size),$(CROSS_COMPILE)size,size)
+KBSS_SZ = $(shell $(SIZEBIN) $(obj)/../../../../vmlinux | awk 'END{print $$3}')
+LDFLAGS_vmlinux = --defsym _kernel_bss_size=$(KBSS_SZ)
 
 # Supply ZRELADDR to the decompressor via a linker symbol.
 ifneq ($(CONFIG_AUTO_ZRELADDR),y)
