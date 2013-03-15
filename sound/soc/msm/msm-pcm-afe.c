@@ -54,10 +54,7 @@ static struct snd_pcm_hardware msm_afe_hardware = {
 	.rates =                (SNDRV_PCM_RATE_8000 |
 				SNDRV_PCM_RATE_16000 |
 				SNDRV_PCM_RATE_48000 |
-				SNDRV_PCM_RATE_64000 |
-				SNDRV_PCM_RATE_88200 |
 				SNDRV_PCM_RATE_96000 |
-				SNDRV_PCM_RATE_176400 |
 				SNDRV_PCM_RATE_192000),
 	.rate_min =             8000,
 	.rate_max =             192000,
@@ -307,7 +304,7 @@ static int msm_afe_capture_prepare(struct snd_pcm_substream *substream)
 
 /* Conventional and unconventional sample rate supported */
 static unsigned int supported_sample_rates[] = {
-	8000, 16000, 48000, 64000, 88200, 96000, 176400, 192000
+	8000, 16000, 48000, 96000, 192000
 };
 
 static struct snd_pcm_hw_constraint_list constraints_sample_rates = {

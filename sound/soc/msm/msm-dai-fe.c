@@ -25,7 +25,7 @@ static struct snd_soc_dai_ops msm_fe_dai_ops = {};
 
 /* Conventional and unconventional sample rate supported */
 static unsigned int supported_sample_rates[] = {
-	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 64000, 88200, 96000, 176400, 192000
+	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 96000, 192000
 };
 
 static struct snd_pcm_hw_constraint_list constraints_sample_rates = {

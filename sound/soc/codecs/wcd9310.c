@@ -40,8 +40,9 @@
 #define pr_err(fmt, ...) pr_aud_err(fmt, ##__VA_ARGS__)
 //htc audio --
 
-#define WCD9310_RATES (SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_16000|\
-			SNDRV_PCM_RATE_32000|SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_64000|SNDRV_PCM_RATE_88200|SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_176400|SNDRV_PCM_RATE_192000)
+#define WCD9310_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
+			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000 |\
+			SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000)
 
 #define NUM_DECIMATORS 10
 #define NUM_INTERPOLATORS 7
@@ -3024,24 +3025,13 @@ static int tabla_hw_params(struct snd_pcm_substream *substream,
 		tx_fs_rate = 0x03;
 		rx_fs_rate = 0x60;
 		break;
-	case 64000:
-		tx_fs_rate = 0x04;
-		rx_fs_rate = 0x65;
-	case 88200:
-		tx_fs_rate = 0x05;
-		rx_fs_rate = 0x65;
-		break;
 	case 96000:
-		tx_fs_rate = 0x06;
-		rx_fs_rate = 0x70;
-		break;
-	case 176400:
-		tx_fs_rate = 0x07;
-		rx_fs_rate = 0x75;
+		tx_fs_rate = 0x04;
+		rx_fs_rate = 0x80;
 		break;
 	case 192000:
-		tx_fs_rate = 0x08;
-		rx_fs_rate = 0x80;
+		tx_fs_rate = 0x05;
+		rx_fs_rate = 0xA0;
 		break;
 	default:
 		pr_err("%s: Invalid sampling rate %d\n", __func__,

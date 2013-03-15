@@ -118,7 +118,7 @@ static struct snd_pcm_hardware msm_pcm_hardware_playback = {
 
 /* Conventional and unconventional sample rate supported */
 static unsigned int supported_sample_rates[] = {
-	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 64000, 88200, 96000, 176400, 192000
+	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 96000, 192000
 };
 
 static uint32_t in_frame_info[CAPTURE_NUM_PERIODS][2];

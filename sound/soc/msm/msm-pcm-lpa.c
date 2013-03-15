@@ -83,7 +83,7 @@ static struct snd_pcm_hardware msm_pcm_hardware = {
 
 /* Conventional and unconventional sample rate supported */
 static unsigned int supported_sample_rates[] = {
-	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 64000, 88200, 96000, 176400, 192000
+	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 96000, 192000
 };
 
 static struct snd_pcm_hw_constraint_list constraints_sample_rates = {
@@ -404,7 +404,6 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 				prtd->audio_client);
 	pr_debug("%s\n", __func__);
 	atomic_set(&prtd->stop, 1);
-	pr_info("%s\n", __func__);
 	msm_pcm_routing_dereg_phy_stream(soc_prtd->dai_link->be_id,
 		SNDRV_PCM_STREAM_PLAYBACK);
 	pr_info("%s\n", __func__);
