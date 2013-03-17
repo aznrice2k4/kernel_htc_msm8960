@@ -257,7 +257,6 @@ static int msm_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		pr_debug("SNDRV_PCM_TRIGGER_PAUSE\n");
 		q6asm_cmd_nowait(prtd->audio_client, CMD_PAUSE);
 		atomic_set(&prtd->start, 0);
-		atomic_set(&prtd->stop, 1);
 		break;
 	default:
 		ret = -EINVAL;
