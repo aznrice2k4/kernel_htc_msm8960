@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/capability.h>
 #include <linux/compat.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/mmc/ioctl.h>
 #include <linux/mmc/card.h>
@@ -353,7 +354,8 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	}
 
 	mrq.cmd = &cmd;
-
+	
+	pm_runtime_get_sync(&card->dev);
 	mmc_claim_host(card->host);
 
 	if (idata->ic.is_acmd) {
@@ -399,6 +401,8 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 
 cmd_rel_host:
 	mmc_release_host(card->host);
+	pm_runtime_mark_last_busy(&card->dev);
+	pm_runtime_put_autosuspend(&card->dev);
 
 cmd_done:
 	if (md)
@@ -1794,8 +1798,10 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	} else
 		mmc_release_host(card->host);
 #endif
+		pm_runtime_get_sync(&card->dev);
+ 		/* claim host only for the first request */
+			mmc_claim_host(card->host);
 
-	mmc_claim_host(card->host);
 	ret = mmc_blk_part_switch(card, md);
 	if (ret) {
 		ret = 0;
@@ -1813,7 +1819,9 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		ret = mmc_blk_issue_rw_rq(mq, req);
 
 out:
-	mmc_release_host(card->host);
+		mmc_release_host(card->host);
+		pm_runtime_mark_last_busy(&card->dev);
+		pm_runtime_put_autosuspend(&card->dev);
 	return ret;
 }
 
@@ -2140,6 +2148,11 @@ static int mmc_blk_probe(struct mmc_card *card)
 		if (mmc_add_disk(part_md))
 			goto out;
 	}
+	
+	pm_runtime_set_active(&card->dev);
+	pm_runtime_set_autosuspend_delay(&card->dev, 3000);
+	pm_runtime_use_autosuspend(&card->dev);
+	pm_runtime_enable(&card->dev);
 	card->mmcblk_dev = disk_to_dev(md->disk);
 	return 0;
 
@@ -2154,9 +2167,12 @@ static void mmc_blk_remove(struct mmc_card *card)
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
 
 	mmc_blk_remove_parts(card, md);
+	pm_runtime_get_sync(&card->dev);
 	mmc_claim_host(card->host);
 	mmc_blk_part_switch(card, md);
 	mmc_release_host(card->host);
+	pm_runtime_disable(&card->dev);
+	pm_runtime_put_noidle(&card->dev);
 	mmc_blk_remove_req(md);
 	mmc_set_drvdata(card, NULL);
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
@@ -2171,10 +2187,12 @@ static int mmc_blk_suspend(struct mmc_card *card)
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
 
 	if (md) {
+		pm_runtime_get_sync(&card->dev);
 		mmc_queue_suspend(&md->queue);
 		list_for_each_entry(part_md, &md->part, part) {
 			mmc_queue_suspend(&part_md->queue);
 		}
+		pm_runtime_put(&card->dev);
 	}
 	return 0;
 }
@@ -2198,6 +2216,7 @@ static int mmc_blk_resume(struct mmc_card *card)
 		list_for_each_entry(part_md, &md->part, part) {
 			mmc_queue_resume(&part_md->queue);
 		}
+		pm_runtime_put(&card->dev);
 	}
 	return 0;
 }
