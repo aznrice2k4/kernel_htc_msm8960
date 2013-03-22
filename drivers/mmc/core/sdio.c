@@ -730,6 +730,24 @@ static int mmc_sdio_resume(struct mmc_host *host)
 	return err;
 }
 
+static int mmc_sdio_runtime_suspend(struct mmc_host *host)
+{
+	/*
+	 * Once sdio clients has entirely switched to runtime pm we wrap
+	 * the call to power_save here.
+	 */
+	return mmc_power_save_host(host);
+}
+
+static int mmc_sdio_runtime_resume(struct mmc_host *host)
+{
+	/*
+	 * Once sdio clients has entirely switched to runtime pm we wrap
+	 * the call to power_restore here.
+	 */
+	return mmc_power_restore_host(host);
+}
+
 static int mmc_sdio_power_restore(struct mmc_host *host)
 {
 	int ret;
@@ -791,6 +809,8 @@ static const struct mmc_bus_ops mmc_sdio_ops = {
 	.detect = mmc_sdio_detect,
 	.suspend = mmc_sdio_suspend,
 	.resume = mmc_sdio_resume,
+	.runtime_suspend = mmc_sdio_runtime_suspend,
+	.runtime_resume = mmc_sdio_runtime_resume,
 	.power_restore = mmc_sdio_power_restore,
 	.alive = mmc_sdio_alive,
 };
