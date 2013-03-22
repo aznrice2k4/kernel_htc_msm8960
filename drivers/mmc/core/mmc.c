@@ -967,18 +967,6 @@ static int mmc_resume(struct mmc_host *host)
 	return err;
 }
 
-static int mmc_power_restore(struct mmc_host *host)
-{
-	int ret;
-
-	host->card->state &= ~MMC_STATE_HIGHSPEED;
-	mmc_claim_host(host);
-	ret = mmc_init_card(host, host->ocr, host->card);
-	mmc_release_host(host);
-
-	return ret;
-}
-
 static int mmc_sleep(struct mmc_host *host)
 {
 	struct mmc_card *card = host->card;
@@ -1141,7 +1129,6 @@ static const struct mmc_bus_ops mmc_ops = {
 	.detect = mmc_detect,
 	.suspend = NULL,
 	.resume = NULL,
-	.power_restore = mmc_power_restore,
 	.alive = mmc_alive,
 };
 
@@ -1152,7 +1139,6 @@ static const struct mmc_bus_ops mmc_ops_unsafe = {
 	.detect = mmc_detect,
 	.suspend = mmc_suspend,
 	.resume = mmc_resume,
-	.power_restore = mmc_power_restore,
 	.alive = mmc_alive,
 };
 
