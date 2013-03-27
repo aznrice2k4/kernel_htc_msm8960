@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.53 Kernel Configuration
+# Linux/arm 3.0.70 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -113,8 +113,8 @@ CONFIG_RD_LZMA=y
 # CONFIG_RD_XZ is not set
 CONFIG_RD_LZO=y
 CONFIG_RD_LZ4 is not set
-CONFIG_CC_OPTIMIZE_FOR_SIZE=y
-# CONFIG_CC_OPTIMIZE_DEFAULT is not set
+# CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
+CONFIG_CC_OPTIMIZE_DEFAULT=y
 # CONFIG_CC_OPTIMIZE_ALOT is not set
 CONFIG_SYSCTL=y
 CONFIG_ANON_INODES=y
@@ -2996,6 +2996,7 @@ CONFIG_NLS_ISO8859_1=y
 # CONFIG_NLS_KOI8_R is not set
 # CONFIG_NLS_KOI8_U is not set
 # CONFIG_NLS_UTF8 is not set
+CONFIG_DYNAMIC_FSYNC=y
 
 #
 # Kernel hacking
