@@ -1031,7 +1031,7 @@ void mipi_dsi_op_mode_config(int mode)
 }
 
 
-void mipi_dsi_wait4video_done(void)
+static void mipi_dsi_wait4video_done(void)
 {
 	unsigned long flag;
 
@@ -1040,8 +1040,7 @@ void mipi_dsi_wait4video_done(void)
 	mipi_dsi_enable_irq(DSI_VIDEO_TERM);
 	spin_unlock_irqrestore(&dsi_mdp_lock, flag);
 
-	wait_for_completion_timeout(&dsi_video_comp,
-          msecs_to_jiffies(VSYNC_PERIOD * 4));
+	wait_for_completion(&dsi_video_comp);
 }
 
 void mipi_dsi_mdp_busy_wait(void)
