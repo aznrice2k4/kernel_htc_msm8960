@@ -51,7 +51,7 @@ struct msm_pcm_routing_bdai_data {
 #define SESSION_TYPE_TX 1
 
 static struct mutex routing_lock;
-
+static int srs_alsa_ctrl_ever_called;
 static int fm_switch_enable;
 #define INT_RX_VOL_MAX_STEPS 0x2000
 #define INT_RX_VOL_GAIN 0x2000
@@ -114,6 +114,47 @@ static void msm_send_eq_values(int eq_idx);
 /* This array is indexed by back-end DAI ID defined in msm-pcm-routing.h
  * If new back-end is defined, add new back-end DAI ID at the end of enum
  */
+
+union srs_trumedia_params_u {
+	struct srs_trumedia_params srs_params;
+	unsigned short int raw_params[1];
+};
+static union srs_trumedia_params_u msm_srs_trumedia_params[2];
+static int srs_port_id = -1;
+
+static void srs_send_params(int port_id, unsigned int techs,
+		int param_block_idx) {
+
+	if (!srs_alsa_ctrl_ever_called)
+		return;
+
+	pr_debug("SRS %s: called, port_id = %d, techs flags = %u,"
+			" paramblockidx %d", __func__, port_id, techs,
+			param_block_idx);
+	
+	if (techs == 1)
+		techs = 0xFFFFFFFF;
+
+	if (techs & (1 << SRS_ID_WOWHD))
+		srs_trumedia_open(port_id, SRS_ID_WOWHD,
+	(void *)&msm_srs_trumedia_params[param_block_idx].srs_params.wowhd);
+	if (techs & (1 << SRS_ID_CSHP))
+		srs_trumedia_open(port_id, SRS_ID_CSHP,
+	(void *)&msm_srs_trumedia_params[param_block_idx].srs_params.cshp);
+	if (techs & (1 << SRS_ID_HPF))
+		srs_trumedia_open(port_id, SRS_ID_HPF,
+	(void *)&msm_srs_trumedia_params[param_block_idx].srs_params.hpf);
+	if (techs & (1 << SRS_ID_PEQ))
+		srs_trumedia_open(port_id, SRS_ID_PEQ,
+	(void *)&msm_srs_trumedia_params[param_block_idx].srs_params.peq);
+	if (techs & (1 << SRS_ID_HL))
+		srs_trumedia_open(port_id, SRS_ID_HL,
+	(void *)&msm_srs_trumedia_params[param_block_idx].srs_params.hl);
+	if (techs & (1 << SRS_ID_GLOBAL))
+		srs_trumedia_open(port_id, SRS_ID_GLOBAL,
+	(void *)&msm_srs_trumedia_params[param_block_idx].srs_params.global);
+}
+
 static struct msm_pcm_routing_bdai_data msm_bedais[MSM_BACKEND_DAI_MAX] = {
 	{ PRIMARY_I2S_RX, 0, NULL, 0, 0},
 	{ PRIMARY_I2S_TX, 0, NULL, 0, 0},
@@ -230,6 +271,8 @@ void msm_pcm_routing_reg_phy_stream(int fedai_id, int dspst_id, int stream_type)
 				topology);
 			payload.copp_ids[payload.num_copps++] =
 				msm_bedais[i].port_id;
+			srs_port_id = msm_bedais[i].port_id;
+			srs_send_params(srs_port_id, 1, 0);
 		}
 	}
 	if (payload.num_copps)
@@ -336,6 +379,8 @@ static void msm_pcm_routing_process_audio(u16 reg, u16 val, int set)
 				topology);
 			msm_pcm_routing_build_matrix(val,
 				fe_dai_map[val][session_type], path_type);
+			srs_port_id = msm_bedais[reg].port_id;
+			srs_send_params(srs_port_id, 1, 0);
 		}
 	} else {
 		if (test_bit(val, &msm_bedais[reg].fe_sessions) &&
@@ -600,6 +645,106 @@ static int msm_routing_set_compr_vol_mixer(struct snd_kcontrol *kcontrol,
 			ucontrol->value.integer.value[0];
 
 	return 0;
+}
+
+static int msm_routing_get_srs_trumedia_control(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = 0;
+	return 0;
+}
+
+static int msm_routing_set_srs_trumedia_control_(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	unsigned int techs = 0;
+	unsigned short offset, value, max, index;
+
+	srs_alsa_ctrl_ever_called = 1;
+
+	max = sizeof(msm_srs_trumedia_params) >> 1;
+	index = (unsigned short)((ucontrol->value.integer.value[0] &
+			SRS_PARAM_INDEX_MASK) >> 31);
+	if (SRS_CMD_UPLOAD ==
+		(ucontrol->value.integer.value[0] & SRS_CMD_UPLOAD)) {
+		techs = ucontrol->value.integer.value[0] & 0xFF;
+		pr_debug("SRS %s: send params request, flags = %u",
+			__func__, techs);
+		if (srs_port_id >= 0 && techs)
+			srs_send_params(srs_port_id, techs, index);
+		return 0;
+	}
+	offset = (unsigned short)((ucontrol->value.integer.value[0] &
+			SRS_PARAM_OFFSET_MASK) >> 16);
+	value = (unsigned short)(ucontrol->value.integer.value[0] &
+			SRS_PARAM_VALUE_MASK);
+	if (offset < max) {
+		msm_srs_trumedia_params[index].raw_params[offset] = value;
+		pr_debug("SRS %s: index set... (max %d, requested %d,"
+			" val %d, paramblockidx %d)", __func__, max, offset,
+			value, index);
+	} else {
+		pr_err("SRS %s: index out of bounds! (max %d, requested %d)",
+				__func__, max, offset);
+	}
+	if (offset == 4) {
+		int i;
+		for (i = 0; i < max; i++) {
+			if (i == 0) {
+				pr_debug("SRS %s: global block start",
+						__func__);
+			}
+			if (i ==
+			(sizeof(struct srs_trumedia_params_GLOBAL) >> 1)) {
+				break;
+				pr_debug("SRS %s: wowhd block start at"
+					" offset %d word offset %d", __func__,
+					i, i>>1);
+			}
+			pr_debug("SRS %s: param_index %d index %d val %d",
+				__func__, index, i,
+				msm_srs_trumedia_params[index].raw_params[i]);
+		}
+	}
+	return 0;
+}
+
+static int msm_routing_set_srs_trumedia_control(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol) {
+	int ret;
+
+	pr_debug("SRS control normal called");
+	mutex_lock(&routing_lock);
+	srs_port_id = SLIMBUS_0_RX;
+	ret = msm_routing_set_srs_trumedia_control_(kcontrol, ucontrol);
+	mutex_unlock(&routing_lock);
+	return ret;
+}
+
+static int msm_routing_set_srs_trumedia_control_I2S(
+		struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol) {
+	int ret;
+
+	pr_debug("SRS control I2S called");
+	mutex_lock(&routing_lock);
+	srs_port_id = PRIMARY_I2S_RX;
+	ret = msm_routing_set_srs_trumedia_control_(kcontrol, ucontrol);
+	mutex_unlock(&routing_lock);
+	return ret;
+}
+
+static int msm_routing_set_srs_trumedia_control_HDMI(
+		struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol) {
+	int ret;
+
+	pr_debug("SRS control HDMI called");
+	mutex_lock(&routing_lock);
+	srs_port_id = HDMI_RX;
+	ret =  msm_routing_set_srs_trumedia_control_(kcontrol, ucontrol);
+	mutex_unlock(&routing_lock);
+	return ret;
 }
 
 static void msm_send_eq_values(int eq_idx)
@@ -1066,6 +1211,66 @@ static const struct snd_kcontrol_new compr_vol_mixer_controls[] = {
 	SOC_SINGLE_EXT_TLV("COMPR RX Volume", SND_SOC_NOPM, 0,
 	INT_RX_VOL_GAIN, 0, msm_routing_get_compr_vol_mixer,
 	msm_routing_set_compr_vol_mixer, compr_rx_vol_gain),
+};
+
+static const struct snd_kcontrol_new lpa_SRS_trumedia_controls[] = {
+	{.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "SRS TruMedia",
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+			SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info = snd_soc_info_volsw, \
+	.get = msm_routing_get_srs_trumedia_control,
+	.put = msm_routing_set_srs_trumedia_control,
+	.private_value = ((unsigned long)&(struct soc_mixer_control)
+	{.reg = SND_SOC_NOPM,
+	.rreg = SND_SOC_NOPM,
+	.shift = 0,
+	.rshift = 0,
+	.max = 0xFFFFFFFF,
+	.platform_max = 0xFFFFFFFF,
+	.invert = 0
+	})
+	}
+};
+
+static const struct snd_kcontrol_new lpa_SRS_trumedia_controls_HDMI[] = {
+	{.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "SRS TruMedia HDMI",
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+			SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info = snd_soc_info_volsw, \
+	.get = msm_routing_get_srs_trumedia_control,
+	.put = msm_routing_set_srs_trumedia_control_HDMI,
+	.private_value = ((unsigned long)&(struct soc_mixer_control)
+	{.reg = SND_SOC_NOPM,
+	.rreg = SND_SOC_NOPM,
+	.shift = 0,
+	.rshift = 0,
+	.max = 0xFFFFFFFF,
+	.platform_max = 0xFFFFFFFF,
+	.invert = 0
+	})
+	}
+};
+
+static const struct snd_kcontrol_new lpa_SRS_trumedia_controls_I2S[] = {
+	{.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "SRS TruMedia I2S",
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+		SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info = snd_soc_info_volsw, \
+	.get = msm_routing_get_srs_trumedia_control,
+	.put = msm_routing_set_srs_trumedia_control_I2S,
+	.private_value = ((unsigned long)&(struct soc_mixer_control)
+	{.reg = SND_SOC_NOPM,
+	.rreg = SND_SOC_NOPM,
+	.shift = 0,
+	.rshift = 0,
+	.max = 0xFFFFFFFF,
+	.platform_max = 0xFFFFFFFF,
+	.invert = 0
+	})
+	}
 };
 
 static const struct snd_kcontrol_new eq_enable_mixer_controls[] = {
@@ -1556,8 +1761,10 @@ static int msm_pcm_routing_close(struct snd_pcm_substream *substream)
 	mutex_lock(&routing_lock);
 
 	for_each_set_bit(i, &bedai->fe_sessions, MSM_FRONTEND_DAI_MM_SIZE) {
-		if (fe_dai_map[i][session_type] != INVALID_SESSION)
+		if (fe_dai_map[i][session_type] != INVALID_SESSION) {
 			adm_close(bedai->port_id);
+			srs_port_id = -1;
+		}
 	}
 
 	bedai->active = 0;
@@ -1705,8 +1912,21 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 	snd_soc_add_platform_controls(platform,
 				eq_coeff_mixer_controls,
 			ARRAY_SIZE(eq_coeff_mixer_controls));
+
+snd_soc_add_platform_controls(platform,
+				lpa_SRS_trumedia_controls,
+			ARRAY_SIZE(lpa_SRS_trumedia_controls));
+
+	snd_soc_add_platform_controls(platform,
+				lpa_SRS_trumedia_controls_HDMI,
+			ARRAY_SIZE(lpa_SRS_trumedia_controls_HDMI));
+
+	snd_soc_add_platform_controls(platform,
+				lpa_SRS_trumedia_controls_I2S,
+			ARRAY_SIZE(lpa_SRS_trumedia_controls_I2S));
 	return 0;
 }
+
 
 static struct snd_soc_platform_driver msm_soc_routing_platform = {
 	.ops		= &msm_routing_pcm_ops,
