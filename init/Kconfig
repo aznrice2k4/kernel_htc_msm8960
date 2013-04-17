@@ -925,7 +925,7 @@ config CC_OPTIMIZE_DEFAULT
 config CC_OPTIMIZE_ALOT
   bool "Use -O3"
 
-+endchoice
+endchoice
 
 config SYSCTL
 	bool

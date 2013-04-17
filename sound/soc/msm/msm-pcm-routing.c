@@ -68,11 +68,11 @@ static const DECLARE_TLV_DB_LINEAR(lpa_rx_vol_gain, 0,
 			INT_RX_VOL_MAX_STEPS);
 
 #define INT_COMPR_RX_VOL_MAX_STEPS 100
-#define INT_RX_VOL_GAIN 0x2000
+#define INT_COMPR_RX_VOL_GAIN 0x2000
 
 static int msm_route_compr_vol_control;
-static const DECLARE_TLV_DB_LINEAR(compr_rx_vol_gain, 0,
-			INT_RX_VOL_MAX_STEPS);
+static const DECLARE_TLV_DB_SCALE(compr_rx_vol_gain, 0,
+			INT_COMPR_RX_VOL_MAX_STEPS, 0);
 
 /* Equal to Frontend after last of the MULTIMEDIA SESSIONS */
 #define MAX_EQ_SESSIONS		MSM_FRONTEND_DAI_CS_VOICE
@@ -1209,7 +1209,7 @@ static const struct snd_kcontrol_new lpa_vol_mixer_controls[] = {
 
 static const struct snd_kcontrol_new compr_vol_mixer_controls[] = {
 	SOC_SINGLE_EXT_TLV("COMPR RX Volume", SND_SOC_NOPM, 0,
-	INT_RX_VOL_GAIN, 0, msm_routing_get_compr_vol_mixer,
+	INT_COMPR_RX_VOL_GAIN, 0, msm_routing_get_compr_vol_mixer,
 	msm_routing_set_compr_vol_mixer, compr_rx_vol_gain),
 };
 
