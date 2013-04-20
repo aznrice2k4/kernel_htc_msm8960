@@ -378,9 +378,8 @@ KBUILD_CFLAGS   := -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-delete-null-pointer-checks -mno-unaligned-access \
 		   -mfpu=neon -funsafe-math-optimizations \
 		   -fsingle-precision-constant -fpredictive-commoning -fipa-cp-clone \
-		   -fgcse-after-reload -ftree-vectorize -pipe \
-		   -funswitch-loops -floop-interchange \
-		   -floop-strip-mine -floop-block
+		   -fgcse-after-reload -ftree-vectorize \
+		   -funswitch-loops -pipe
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL := 
 KBUILD_AFLAGS   := -D__ASSEMBLY__
