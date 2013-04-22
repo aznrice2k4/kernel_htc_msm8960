@@ -6409,6 +6409,7 @@ static struct platform_device *common_devices[] __initdata = {
 #ifdef CONFIG_HTC_BATT_8960
 	&htc_battery_pdev,
 #endif
+	&msm8960_msm_gov_device,
 };
 
 static struct platform_device *elite_devices[] __initdata = {
