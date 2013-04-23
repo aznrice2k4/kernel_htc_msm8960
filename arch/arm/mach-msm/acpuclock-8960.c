@@ -144,6 +144,10 @@ static void set_acpuclk_L2_freq_foot_print(unsigned khz)
 
 #define STBY_KHZ		1
 
+/* Undervolt */
+#define MAX_VDD_SC    1350000 /* uV */  
+#define MIN_VDD_SC     600000 /* uV */
+
 #ifdef CONFIG_CPU_VOLTAGE_TABLE
 #define HFPLL_NOMINAL_VDD	 950000
 #define HFPLL_LOW_VDD		 800000
@@ -1507,8 +1511,8 @@ static const int krait_needs_vmin(void)
 static void kraitv2_apply_vmin(struct acpu_level *tbl)
 {
 	for (; tbl->speed.khz != 0; tbl++)
-		if (tbl->vdd_core < 1150000)
-			tbl->vdd_core = 1150000;
+		if (tbl->vdd_core < MIN_VDD_SC)
+			tbl->vdd_core = MIN_VDD_SC;
 }
 
 static struct acpu_level * __init select_freq_plan(void)
