@@ -94,6 +94,8 @@ int lpa_set_volume(unsigned volume);
 
 int compr_set_volume(unsigned volume);
 
+int multi_ch_pcm_set_volume(unsigned volume);
+
 int msm_routing_check_backend_enabled(int fedai_id);
 
 void htc_8960_register_pcm_routing_ops(struct msm_pcm_routing_ops *ops);

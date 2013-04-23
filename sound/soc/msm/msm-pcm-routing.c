@@ -67,6 +67,10 @@ static const DECLARE_TLV_DB_LINEAR(lpa_rx_vol_gain, 0,
 #define INT_COMPR_RX_VOL_MAX_STEPS 0x2000
 #define INT_COMPR_RX_VOL_GAIN 0x2000
 
+static int msm_route_multimedia2_vol_control;
+static const DECLARE_TLV_DB_SCALE(multimedia2_rx_vol_gain, 0,
+      INT_RX_VOL_MAX_STEPS, 0);
+
 static int msm_route_compr_vol_control;
 static const DECLARE_TLV_DB_LINEAR(compr_rx_vol_gain, 0,
 			INT_COMPR_RX_VOL_MAX_STEPS);
@@ -182,6 +186,7 @@ void msm_pcm_routing_reg_phy_stream(int fedai_id, int dspst_id, int stream_type)
 	int i, session_type, path_type, port_type;
 	struct route_payload payload;
 	int topology = DEFAULT_COPP_TOPOLOGY;
+	u32 channels;
 
 	if (fedai_id > MSM_FRONTEND_DAI_MM_MAX_ID) {
 		/* bad ID assigned in machine driver */
@@ -220,11 +225,22 @@ void msm_pcm_routing_reg_phy_stream(int fedai_id, int dspst_id, int stream_type)
 			port_type) && msm_bedais[i].active &&
 			(test_bit(fedai_id,
 			&msm_bedais[i].fe_sessions))) {
-			adm_open(msm_bedais[i].port_id,
+			channels = params_channels(msm_bedais[i].hw_params);
+
+		if ((stream_type == SNDRV_PCM_STREAM_PLAYBACK) &&
+				(channels > 2))
+				adm_multi_ch_copp_open(msm_bedais[i].port_id,
+				path_type,
+				params_rate(msm_bedais[i].hw_params),
+				channels,
+				topology);
+			else
+				adm_open(msm_bedais[i].port_id,
 				path_type,
 				params_rate(msm_bedais[i].hw_params),
 				params_channels(msm_bedais[i].hw_params),
 				topology);
+
 			payload.copp_ids[payload.num_copps++] =
 				msm_bedais[i].port_id;
 		}
@@ -290,6 +306,7 @@ static void msm_pcm_routing_process_audio(u16 reg, u16 val, int set)
 {
 	int session_type, path_type;
 	int topology = DEFAULT_COPP_TOPOLOGY;
+	u32 channels;
 
 	pr_info("%s: reg %x val %x set %x\n", __func__, reg, val, set);
 
@@ -327,7 +344,17 @@ static void msm_pcm_routing_process_audio(u16 reg, u16 val, int set)
 		set_bit(val, &msm_bedais[reg].fe_sessions);
 		if (msm_bedais[reg].active && fe_dai_map[val][session_type] !=
 			INVALID_SESSION) {
-			adm_open(msm_bedais[reg].port_id, path_type,
+			channels = params_channels(msm_bedais[reg].hw_params);
+
+		if ((session_type == SESSION_TYPE_RX) && (channels > 2))
+			adm_multi_ch_copp_open(msm_bedais[reg].port_id,
+			path_type,
+			params_rate(msm_bedais[reg].hw_params),
+			channels,
+			topology);
+		else
+			adm_open(msm_bedais[reg].port_id,
+			path_type,
 				params_rate(msm_bedais[reg].hw_params),
 				params_channels(msm_bedais[reg].hw_params),
 				topology);
@@ -580,6 +607,25 @@ static int msm_routing_set_lpa_vol_mixer(struct snd_kcontrol *kcontrol,
 			ucontrol->value.integer.value[0];
 
 	return 0;
+}
+
+static int msm_routing_get_multimedia2_vol_mixer(struct snd_kcontrol *kcontrol,
+        struct snd_ctl_elem_value *ucontrol)
+{
+
+  ucontrol->value.integer.value[0] = msm_route_multimedia2_vol_control;
+  return 0;
+}
+
+static int msm_routing_set_multimedia2_vol_mixer(struct snd_kcontrol *kcontrol,
+        struct snd_ctl_elem_value *ucontrol)
+{
+
+  if (!multi_ch_pcm_set_volume(ucontrol->value.integer.value[0]))
+    msm_route_multimedia2_vol_control =
+      ucontrol->value.integer.value[0];
+
+  return 0;
 }
 
 static int msm_routing_get_compr_vol_mixer(struct snd_kcontrol *kcontrol,
@@ -1057,6 +1103,12 @@ static const struct snd_kcontrol_new lpa_vol_mixer_controls[] = {
 	SOC_SINGLE_EXT_TLV("LPA RX Volume", SND_SOC_NOPM, 0,
 	INT_RX_VOL_GAIN, 0, msm_routing_get_lpa_vol_mixer,
 	msm_routing_set_lpa_vol_mixer, lpa_rx_vol_gain),
+};
+
+static const struct snd_kcontrol_new multimedia2_vol_mixer_controls[] = {
+  SOC_SINGLE_EXT_TLV("HIFI2 RX Volume", SND_SOC_NOPM, 0,
+  INT_RX_VOL_GAIN, 0, msm_routing_get_multimedia2_vol_mixer,
+  msm_routing_set_multimedia2_vol_mixer, multimedia2_rx_vol_gain),
 };
 
 static const struct snd_kcontrol_new compr_vol_mixer_controls[] = {
@@ -1587,6 +1639,7 @@ static int msm_pcm_routing_prepare(struct snd_pcm_substream *substream)
 	int i, path_type, session_type;
 	struct msm_pcm_routing_bdai_data *bedai;
 	int topology = DEFAULT_COPP_TOPOLOGY;
+	u32 channels;
 
 	if (be_id >= MSM_BACKEND_DAI_MAX) {
 		pr_err("%s: unexpected be_id %d\n", __func__, be_id);
@@ -1633,10 +1686,21 @@ static int msm_pcm_routing_prepare(struct snd_pcm_substream *substream)
 
 	for_each_set_bit(i, &bedai->fe_sessions, MSM_FRONTEND_DAI_MM_SIZE) {
 		if (fe_dai_map[i][session_type] != INVALID_SESSION) {
-			adm_open(bedai->port_id, path_type,
+			channels = params_channels(bedai->hw_params);
+			if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK) &&
+				(channels > 2))
+				adm_multi_ch_copp_open(bedai->port_id,
+				path_type,
+				params_rate(bedai->hw_params),
+				channels,
+				topology);
+			else
+				adm_open(bedai->port_id,
+				path_type,
 				params_rate(bedai->hw_params),
 				params_channels(bedai->hw_params),
 				topology);
+
 			msm_pcm_routing_build_matrix(i,
 				fe_dai_map[i][session_type], path_type);
 		}
@@ -1686,6 +1750,10 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 	snd_soc_add_platform_controls(platform,
 				lpa_vol_mixer_controls,
 			ARRAY_SIZE(lpa_vol_mixer_controls));
+
+snd_soc_add_platform_controls(platform,
+        multimedia2_vol_mixer_controls,
+      ARRAY_SIZE(multimedia2_vol_mixer_controls));
 
 	snd_soc_add_platform_controls(platform,
 				compr_vol_mixer_controls,
