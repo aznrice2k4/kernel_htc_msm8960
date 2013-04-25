@@ -92,6 +92,7 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 		if (data->opcode == APR_BASIC_RSP_RESULT) {
 			switch (payload[0]) {
 			case AFE_PORT_AUDIO_IF_CONFIG:
+			case AFE_PORT_MULTI_CHAN_HDMI_AUDIO_IF_CONFIG:
 			case AFE_PORT_CMD_STOP:
 			case AFE_PORT_CMD_START:
 			case AFE_PORT_CMD_LOOPBACK:

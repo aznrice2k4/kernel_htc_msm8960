@@ -1424,6 +1424,9 @@ int q6asm_open_write(struct audio_client *ac, uint32_t format)
 	case FORMAT_LINEAR_PCM:
 		open.format = LINEAR_PCM;
 		break;
+	case FORMAT_MULTI_CHANNEL_LINEAR_PCM:
+		open.format = MULTI_CHANNEL_PCM;
+		break;
 	case FORMAT_MPEG4_AAC:
 		open.format = MPEG4_AAC;
 		break;
