@@ -149,8 +149,8 @@ static void set_acpuclk_L2_freq_foot_print(unsigned khz)
 #define MIN_VDD_SC     600000 /* uV */
 
 #ifdef CONFIG_CPU_VOLTAGE_TABLE
-#define HFPLL_NOMINAL_VDD	 950000
-#define HFPLL_LOW_VDD		 600000
+#define HFPLL_NOMINAL_VDD	 1000000
+#define HFPLL_LOW_VDD		 650000
 #else
 #define HFPLL_NOMINAL_VDD	1050000
 #define HFPLL_LOW_VDD		800000
