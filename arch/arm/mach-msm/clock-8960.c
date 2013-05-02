@@ -3378,8 +3378,7 @@ static struct clk_freq_tbl clk_tbl_gfx3d_8960[] = {
 	F_END
 };
 
-#ifdef CONFIG_GPU_OVERCLOCK
-static struct clk_freq_tbl clk_tbl_gfx3d_8960_oc[] = {
+static struct clk_freq_tbl clk_tbl_gfx3d_8960_v2[] = {
 	F_GFX3D(        0, gnd,  0,  0),
 	F_GFX3D( 27000000, pxo,  0,  0),
 	F_GFX3D( 48000000, pll8, 1,  8),
@@ -3397,16 +3396,14 @@ static struct clk_freq_tbl clk_tbl_gfx3d_8960_oc[] = {
 	F_GFX3D(300000000, pll3, 1,  4),
 	F_GFX3D(320000000, pll2, 2,  5),
 	F_GFX3D(400000000, pll2, 1,  2),
-	F_GFX3D(480000000, pll3, 2,  5),
 	F_END
 };
 
-static unsigned long fmax_gfx3d_8960_oc[MAX_VDD_LEVELS] __initdata = {
+static unsigned long fmax_gfx3d_8960_v2[MAX_VDD_LEVELS] __initdata = {
 	[VDD_DIG_LOW]     = 128000000,
-	[VDD_DIG_NOMINAL] = 320000000,
-	[VDD_DIG_HIGH]    = 480000000
+	[VDD_DIG_NOMINAL] = 300000000,
+	[VDD_DIG_HIGH]    = 400000000
 };
-#endif
 
 static struct clk_freq_tbl clk_tbl_gfx3d_8064[] = {
 	F_GFX3D(        0, gnd,   0,  0),
@@ -5831,17 +5828,10 @@ static void __init msm8960_clock_init(void)
 		memcpy(msm_clocks_8960, msm_clocks_8960_v1,
 				sizeof(msm_clocks_8960_v1));
 		if (hw_rev >= 2) {
-#ifdef CONFIG_GPU_OVERCLOCK
-			gfx3d_clk.freq_tbl = clk_tbl_gfx3d_8960_oc;
-
-			memcpy(gfx3d_clk.c.fmax, fmax_gfx3d_8960_oc,
-			       sizeof(gfx3d_clk.c.fmax));
-#else
 			gfx3d_clk.freq_tbl = clk_tbl_gfx3d_8960_v2;
 
 			memcpy(gfx3d_clk.c.fmax, fmax_gfx3d_8960_v2,
 			       sizeof(gfx3d_clk.c.fmax));
-#endif
 			memcpy(ijpeg_clk.c.fmax, fmax_ijpeg_8960_v2,
 			       sizeof(ijpeg_clk.c.fmax));
 			memcpy(vfe_clk.c.fmax, fmax_vfe_8960_v2,
