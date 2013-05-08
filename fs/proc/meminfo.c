@@ -62,6 +62,9 @@ void show_meminfo(void)
 		"AnonPages:      %8lu kB\n"
 		"Slab:           %8lu kB\n"
 		"PageTables:     %8lu kB\n"
+#ifdef CONFIG_UKSM
+		"KsmZeroPages:   %8lu kB\n"
+#endif
 		"KernelStack:    %8lu kB\n"
 		"VmallocAlloc:   %8lu kB\n"
 		"Subtotal:       %8lu kB\n",
@@ -73,6 +76,9 @@ void show_meminfo(void)
 		K(global_page_state(NR_ANON_PAGES)),
 		K(global_page_state(NR_SLAB_RECLAIMABLE) + global_page_state(NR_SLAB_UNRECLAIMABLE)),
 		K(global_page_state(NR_PAGETABLE)),
+#ifdef CONFIG_UKSM
+		K(global_page_state(NR_UKSM_ZERO_PAGES)),
+#endif
 		global_page_state(NR_KERNEL_STACK) * THREAD_SIZE / 1024,
 		(vmi.alloc >> 10),
 		subtotal);
