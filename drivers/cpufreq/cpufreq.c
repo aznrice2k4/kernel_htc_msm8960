@@ -38,6 +38,7 @@
  * level driver of CPUFreq support, and its spinlock. This lock
  * also protects the cpufreq_cpu_data array.
  */
+#define FREQ_STEPS  23
 static struct cpufreq_driver *cpufreq_driver;
 static DEFINE_PER_CPU(struct cpufreq_policy *, cpufreq_cpu_data);
 #ifdef CONFIG_HOTPLUG_CPU
@@ -626,11 +627,12 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 
 #ifdef CONFIG_CPU_VOLTAGE_TABLE
 
-extern ssize_t acpuclk_get_vdd_levels_str(char *buf);
+extern ssize_t acpuclk_get_vdd_levels_str(char *buf, int isApp);
 extern void acpuclk_set_vdd(unsigned acpu_khz, int vdd);
+extern void acpuclk_UV_mV_table(int cnt, int vdd_uv[]);
 
 static ssize_t show_vdd_levels(struct kobject *a, struct attribute *b, char *buf) {
-	return acpuclk_get_vdd_levels_str(buf);
+	return acpuclk_get_vdd_levels_str(buf, 0);
 }
 
 static ssize_t store_vdd_levels(struct kobject *a, struct attribute *b, const char *buf, size_t count) {
@@ -684,6 +686,24 @@ static ssize_t store_vdd_levels(struct kobject *a, struct attribute *b, const ch
 	return count;
 }
 
+ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
+{
+        return acpuclk_get_vdd_levels_str(buf, FREQ_STEPS);
+}
+
+ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
+                                      const char *buf, size_t count)
+{
+	unsigned int ret = -EINVAL;
+	int u[FREQ_STEPS];
+	ret = sscanf(buf, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5], &u[6], &u[7], &u[8], &u[9], &u[10], &u[11], &u[12], &u[13], &u[14], &u[15], &u[16], &u[17], &u[18], &u[19], &u[20], &u[21], &u[22]);
+	if(ret != FREQ_STEPS) {
+	return -EINVAL;
+	}
+
+	acpuclk_UV_mV_table(FREQ_STEPS, u);
+	return count;
+}
 #endif	/* CONFIG_CPU_VOLTAGE_TABLE */
 
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
@@ -702,6 +722,7 @@ cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
 #ifdef CONFIG_CPU_VOLTAGE_TABLE
+cpufreq_freq_attr_rw(UV_mV_table);
 define_one_global_rw(vdd_levels);
 #endif
 
@@ -718,6 +739,9 @@ static struct attribute *default_attrs[] = {
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
+#ifdef CONFIG_CPU_VOLTAGE_TABLE
+	&UV_mV_table.attr,	
+#endif
 	NULL
 };
 
