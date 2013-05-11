@@ -76,7 +76,7 @@ static int msm8960_ext_top_spk_pamp;
 static int msm8960_ext_dock_spk_pamp;
 static int msm8960_slim_0_rx_ch = 1;
 static int msm8960_slim_0_tx_ch = 1;
-
+static int msm8960_hdmi_rx_ch = 2;
 static int msm8960_btsco_rate = BTSCO_RATE_8KHZ;
 static int msm8960_btsco_ch = 1;
 
@@ -689,11 +689,13 @@ static const struct snd_soc_dapm_route common_audio_map[] = {
 static const char *spk_function[] = {"Off", "On"};
 static const char *slim0_rx_ch_text[] = {"One", "Two"};
 static const char *slim0_tx_ch_text[] = {"One", "Two", "Three", "Four"};
+static const char *hdmi_rx_ch_text[] = {"Two", "Three", "Four", "Five", "Six"};
 
 static const struct soc_enum msm8960_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, spk_function),
 	SOC_ENUM_SINGLE_EXT(2, slim0_rx_ch_text),
 	SOC_ENUM_SINGLE_EXT(4, slim0_tx_ch_text),
+	SOC_ENUM_SINGLE_EXT(5, hdmi_rx_ch_text),
 };
 
 static const char *stereo_mic_voice[] = {"Off", "On"};
@@ -741,6 +743,25 @@ static int msm8960_slim_0_tx_ch_put(struct snd_kcontrol *kcontrol,
 
 	pr_debug("%s: msm8960_slim_0_tx_ch = %d\n", __func__,
 			msm8960_slim_0_tx_ch);
+	return 1;
+}
+
+static int msm8960_hdmi_rx_ch_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	pr_debug("%s: msm8960_hdmi_rx_ch  = %d\n", __func__,
+			msm8960_hdmi_rx_ch);
+	ucontrol->value.integer.value[0] = msm8960_hdmi_rx_ch - 2;
+	return 0;
+}
+
+static int msm8960_hdmi_rx_ch_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	msm8960_hdmi_rx_ch = ucontrol->value.integer.value[0] + 2;
+
+	pr_debug("%s: msm8960_hdmi_rx_ch = %d\n", __func__,
+		msm8960_hdmi_rx_ch);
 	return 1;
 }
 
@@ -838,6 +859,8 @@ static const struct snd_kcontrol_new tabla_msm8960_controls[] = {
 		msm8960_slim_0_rx_ch_get, msm8960_slim_0_rx_ch_put),
 	SOC_ENUM_EXT("SLIM_0_TX Channels", msm8960_enum[2],
 		msm8960_slim_0_tx_ch_get, msm8960_slim_0_tx_ch_put),
+	SOC_ENUM_EXT("HDMI_RX Channels", msm8960_enum[3],
+		msm8960_hdmi_rx_ch_get, msm8960_hdmi_rx_ch_put),
 };
 
 static const struct snd_kcontrol_new elite_msm8960_controls[] = {
