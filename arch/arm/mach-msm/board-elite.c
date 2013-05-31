@@ -335,7 +335,7 @@ void elite_lcd_id_power(int pull)
 
 #define MSM_PMEM_ADSP_SIZE         0x65D0000 /* Need to be multiple of 64K */
 #define MSM_PMEM_AUDIO_SIZE        0x4CF000
-#define MSM_PMEM_SIZE 0x5000000 /* 80 Mbytes */
+#define MSM_PMEM_SIZE 0x4800000 /* 80 Mbytes */
 #define MSM_LIQUID_PMEM_SIZE 0x4000000 /* 64 Mbytes */
 
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
@@ -355,7 +355,7 @@ void elite_lcd_id_power(int pull)
 #else
 #define MSM_ION_MM_SIZE		MSM_PMEM_ADSP_SIZE
 #define MSM_ION_SF_SIZE		MSM_PMEM_SIZE
-#define MSM_ION_QSECOM_SIZE	0x600000 /* (6MB) */
+#define MSM_ION_QSECOM_SIZE	0x100000 /* (6MB) */
 #define MSM_ION_HEAP_NUM	8
 #endif
 #define MSM_ION_MM_FW_SIZE	0x200000 /* (2MB) */
@@ -1005,6 +1005,9 @@ static int msm8960_change_memory_power(u64 start, u64 size,
 
 #ifdef CONFIG_CPU_FREQ_GOV_ONDEMAND_2_PHASE
 int set_two_phase_freq(int cpufreq);
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_INTELLIDEMAND
+int id_set_two_phase_freq(int cpufreq);
 #endif
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
@@ -6422,6 +6425,7 @@ static struct platform_device *elite_devices[] __initdata = {
 	&msm_device_hsusb_host,
 	&msm_pcm,
 	&msm_multi_ch_pcm,
+	&msm_lowlatency_pcm,
 	&msm_pcm_routing,
 	&msm_cpudai0,
 	&msm_cpudai1,
@@ -7401,6 +7405,10 @@ static void __init elite_init(void)
 #ifdef CONFIG_CPU_FREQ_GOV_ONDEMAND_2_PHASE
 	if(!cpu_is_krait_v1())
 		set_two_phase_freq(1134000);
+#endif
+#ifdef CONFIG_CPU_FREQ_GOV_INTELLIDEMAND
+	if(!cpu_is_krait_v1())
+		id_set_two_phase_freq(1134000);
 #endif
 
 	/*usb driver won't be loaded in MFG 58 station and gift mode*/

@@ -1689,7 +1689,7 @@ static int htc_headset_mgr_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_usb_audio_switch_dev_register;
 
-	detect_wq = create_workqueue("detect");
+	detect_wq = create_singlethread_workqueue("detect");
 	if (detect_wq == NULL) {
 		ret = -ENOMEM;
 		HS_ERR("Failed to create detect workqueue");

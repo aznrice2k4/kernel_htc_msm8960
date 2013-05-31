@@ -84,7 +84,7 @@ static int zram_major;
 struct zram *zram_devices;
 
 /* Module params (documentation at end) */
-unsigned int zram_num_devices;
+static unsigned int num_devices;
 
 static void zram_stat_inc(u32 *v)
 {
@@ -148,30 +148,40 @@ static int page_zero_filled(void *ptr)
 	return 1;
 }
 
-static u64 zram_default_disksize_bytes(void)
+static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
 {
-#if 0
-	return ((totalram_pages << PAGE_SHIFT) *
-		default_disksize_perc_ram / 100) & PAGE_MASK;
-#endif
-	return CONFIG_ZRAM_DEFAULT_DISKSIZE;
-}
+	if (!zram->disksize) {
+		pr_info(
+		"disk size not provided. You can use disksize_kb module "
+		"param to specify size.\nUsing default: (%u%% of RAM).\n",
+		default_disksize_perc_ram
+		);
+		zram->disksize = default_disksize_perc_ram *
+					(totalram_bytes / 100);
+	}
 
-static void zram_set_disksize(struct zram *zram, u64 size_bytes)
-{
-	zram->disksize = size_bytes;
-	set_capacity(zram->disk, size_bytes >> SECTOR_SHIFT);
+	if (zram->disksize > 2 * (totalram_bytes)) {
+		pr_info(
+		"There is little point creating a zram of greater than "
+		"twice the size of memory since we expect a 2:1 compression "
+		"ratio. Note that zram uses about 0.1%% of the size of "
+		"the disk when not in use so a huge zram is "
+		"wasteful.\n"
+		"\tMemory Size: %zu kB\n"
+		"\tSize you selected: %llu kB\n"
+		"Continuing anyway ...\n",
+		totalram_bytes >> 10, zram->disksize
+		);
+	}
+
+	zram->disksize &= PAGE_MASK;
 }
 
 static void zram_free_page(struct zram *zram, size_t index)
 {
-	u32 clen;
-	void *obj;
+	void *handle = zram->table[index].handle;
 
-	struct page *page = zram->table[index].page;
-	u32 offset = zram->table[index].offset;
-
-	if (unlikely(!page)) {
+	if (unlikely(!handle)) {
 		/*
 		 * No memory is allocated for zero filled pages.
 		 * Simply clear zero page flag.
@@ -184,27 +194,24 @@ static void zram_free_page(struct zram *zram, size_t index)
 	}
 
 	if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED))) {
-		clen = PAGE_SIZE;
-		__free_page(page);
+		__free_page(handle);
 		zram_clear_flag(zram, index, ZRAM_UNCOMPRESSED);
 		zram_stat_dec(&zram->stats.pages_expand);
 		goto out;
 	}
 
-	obj = kmap_atomic(page) + offset;
-	clen = xv_get_object_size(obj) - sizeof(struct zobj_header);
-	kunmap_atomic(obj);
+	zs_free(zram->mem_pool, handle);
 
-	xv_free(zram->mem_pool, page, offset);
-	if (clen <= PAGE_SIZE / 2)
+	if (zram->table[index].size <= PAGE_SIZE / 2)
 		zram_stat_dec(&zram->stats.good_compress);
 
 out:
-	zram_stat64_sub(zram, &zram->stats.compr_size, clen);
+	zram_stat64_sub(zram, &zram->stats.compr_size,
+		zram->table[index].size);
 	zram_stat_dec(&zram->stats.pages_stored);
 
-	zram->table[index].page = NULL;
-	zram->table[index].offset = 0;
+	zram->table[index].handle = NULL;
+	zram->table[index].size = 0;
 }
 
 static void handle_zero_page(struct bio_vec *bvec)
@@ -226,7 +233,7 @@ static void handle_uncompressed_page(struct zram *zram, struct bio_vec *bvec,
 	unsigned char *user_mem, *cmem;
 
 	user_mem = kmap_atomic(page);
-	cmem = kmap_atomic(zram->table[index].page);
+	cmem = kmap_atomic(zram->table[index].handle);
 
 	memcpy(user_mem + bvec->bv_offset, cmem + offset, bvec->bv_len);
 	kunmap_atomic(cmem);
@@ -257,7 +264,7 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
 	}
 
 	/* Requested page is not present in compressed area */
-	if (unlikely(!zram->table[index].page)) {
+	if (unlikely(!zram->table[index].handle)) {
 		pr_debug("Read before write: sector=%lu, size=%u",
 			 (ulong)(bio->bi_sector), bio->bi_size);
 		handle_zero_page(bvec);
@@ -284,12 +291,11 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
 		uncmem = user_mem;
 	clen = PAGE_SIZE;
 
-	cmem = kmap_atomic(zram->table[index].page) +
-		zram->table[index].offset;
+	cmem = zs_map_object(zram->mem_pool, zram->table[index].handle);
 
 	ret = DECOMPRESS(
 			cmem + sizeof(*zheader),
-			xv_get_object_size(cmem) - sizeof(*zheader),
+			zram->table[index].size,
 			uncmem, &clen);
 
 	if (is_partial_io(bvec)) {
@@ -298,7 +304,7 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
 		kfree(uncmem);
 	}
 
-	kunmap_atomic(cmem);
+	zs_unmap_object(zram->mem_pool, zram->table[index].handle);
 	kunmap_atomic(user_mem);
 
 	/* Should NEVER happen. Return bio error if it does. */
@@ -321,13 +327,12 @@ static int zram_read_before_write(struct zram *zram, char *mem, u32 index)
 	unsigned char *cmem;
 
 	if (zram_test_flag(zram, index, ZRAM_ZERO) ||
-	    !zram->table[index].page) {
+	    !zram->table[index].handle) {
 		memset(mem, 0, PAGE_SIZE);
 		return 0;
 	}
 
-	cmem = kmap_atomic(zram->table[index].page) +
-		zram->table[index].offset;
+	cmem = zs_map_object(zram->mem_pool, zram->table[index].handle);
 
 	/* Page is stored uncompressed since it's incompressible */
 	if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED))) {
@@ -337,9 +342,9 @@ static int zram_read_before_write(struct zram *zram, char *mem, u32 index)
 	}
 
 	ret = DECOMPRESS(cmem + sizeof(*zheader),
-			xv_get_object_size(cmem) - sizeof(*zheader),
+			zram->table[index].size,
 			mem, &clen);
-	kunmap_atomic(cmem);
+	zs_unmap_object(zram->mem_pool, zram->table[index].handle);
 
 	/* Should NEVER happen. Return bio error if it does. */
 	if (unlikely(ret)) {
@@ -357,6 +362,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 	int ret;
 	u32 store_offset;
 	size_t clen;
+	void *handle;
 	struct zobj_header *zheader;
 	struct page *page, *page_store;
 	unsigned char *user_mem, *cmem, *src, *uncmem = NULL;
@@ -386,7 +392,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 	 * System overwrites unused sectors. Free memory associated
 	 * with this sector now.
 	 */
-	if (zram->table[index].page ||
+	if (zram->table[index].handle ||
 	    zram_test_flag(zram, index, ZRAM_ZERO))
 		zram_free_page(zram, index);
 
@@ -408,9 +414,8 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 		goto out;
 	}
 
-	COMPRESS(uncmem, PAGE_SIZE, src, &clen,
+	ret = COMPRESS(uncmem, PAGE_SIZE, src, &clen,
 		zram->compress_workmem);
-	ret = 0;
 
 	kunmap_atomic(user_mem);
 	if (is_partial_io(bvec))
@@ -439,25 +444,22 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 		store_offset = 0;
 		zram_set_flag(zram, index, ZRAM_UNCOMPRESSED);
 		zram_stat_inc(&zram->stats.pages_expand);
-		zram->table[index].page = page_store;
+		handle = page_store;
 		src = kmap_atomic(page);
+		cmem = kmap_atomic(page_store);
 		goto memstore;
 	}
 
-	if (xv_malloc(zram->mem_pool, clen + sizeof(*zheader),
-		      &zram->table[index].page, &store_offset,
-		      GFP_NOIO | __GFP_HIGHMEM)) {
+	handle = zs_malloc(zram->mem_pool, clen + sizeof(*zheader));
+	if (!handle) {
 		pr_info("Error allocating memory for compressed "
 			"page: %u, size=%zu\n", index, clen);
 		ret = -ENOMEM;
 		goto out;
 	}
+	cmem = zs_map_object(zram->mem_pool, handle);
 
 memstore:
-	zram->table[index].offset = store_offset;
-
-	cmem = kmap_atomic(zram->table[index].page) +
-		zram->table[index].offset;
 
 #if 0
 	/* Back-reference needed for memory defragmentation */
@@ -470,9 +472,15 @@ memstore:
 
 	memcpy(cmem, src, clen);
 
-	kunmap_atomic(cmem);
-	if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED)))
+	if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED))) {
+		kunmap_atomic(cmem);
 		kunmap_atomic(src);
+	} else {
+		zs_unmap_object(zram->mem_pool, handle);
+	}
+
+	zram->table[index].handle = handle;
+	zram->table[index].size = clen;
 
 	/* Update stats */
 	zram_stat64_add(zram, &zram->stats.compr_size, clen);
@@ -631,31 +639,26 @@ void __zram_reset_device(struct zram *zram)
 
 	/* Free all pages that are still in this zram device */
 	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
-		struct page *page;
-		u16 offset;
-
-		page = zram->table[index].page;
-		offset = zram->table[index].offset;
-
-		if (!page)
+		void *handle = zram->table[index].handle;
+		if (!handle)
 			continue;
 
 		if (unlikely(zram_test_flag(zram, index, ZRAM_UNCOMPRESSED)))
-			__free_page(page);
+			__free_page(handle);
 		else
-			xv_free(zram->mem_pool, page, offset);
+			zs_free(zram->mem_pool, handle);
 	}
 
 	vfree(zram->table);
 	zram->table = NULL;
 
-	xv_destroy_pool(zram->mem_pool);
+	zs_destroy_pool(zram->mem_pool);
 	zram->mem_pool = NULL;
 
 	/* Reset stats */
 	memset(&zram->stats, 0, sizeof(zram->stats));
 
-	zram_set_disksize(zram, zram_default_disksize_bytes());
+	zram->disksize = 0;
 }
 
 void zram_reset_device(struct zram *zram)
@@ -676,6 +679,8 @@ int zram_init_device(struct zram *zram)
 		up_write(&zram->init_lock);
 		return 0;
 	}
+
+	zram_set_disksize(zram, totalram_pages << PAGE_SHIFT);
 
 	zram->compress_workmem = kzalloc(WMSIZE, GFP_KERNEL);
 	if (!zram->compress_workmem) {
@@ -700,10 +705,12 @@ int zram_init_device(struct zram *zram)
 		goto fail_no_table;
 	}
 
+	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
+
 	/* zram devices sort of resembles non-rotational disks */
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
 
-	zram->mem_pool = xv_create_pool();
+	zram->mem_pool = zs_create_pool("zram", GFP_NOIO | __GFP_HIGHMEM);
 	if (!zram->mem_pool) {
 		pr_err("Error creating memory pool\n");
 		ret = -ENOMEM;
@@ -782,7 +789,7 @@ static int create_device(struct zram *zram, int device_id)
 	 * must reset the device and then write a new disksize to
 	 * corresponding device's sysfs node.
 	 */
-	zram_set_disksize(zram, zram_default_disksize_bytes());
+	set_capacity(zram->disk, 0);
 
 	/*
 	 * To ensure that we always get PAGE_SIZE aligned
@@ -823,21 +830,18 @@ static void destroy_device(struct zram *zram)
 		blk_cleanup_queue(zram->queue);
 }
 
+unsigned int zram_get_num_devices(void)
+{
+	return num_devices;
+}
+
 static int __init zram_init(void)
 {
 	int ret, dev_id;
 
-	/*
-	 * Module parameter not specified by user. Use default
-	 * value as defined during kernel config.
-	 */
-	if (zram_num_devices == 0) {
-		zram_num_devices = CONFIG_ZRAM_NUM_DEVICES;
-	}
-
-	if (zram_num_devices > max_num_devices) {
+	if (num_devices > max_num_devices) {
 		pr_warning("Invalid value for num_devices: %u\n",
-				zram_num_devices);
+				num_devices);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -849,20 +853,20 @@ static int __init zram_init(void)
 		goto out;
 	}
 
-	if (!zram_num_devices) {
+	if (!num_devices) {
 		pr_info("num_devices not specified. Using default: 1\n");
-		zram_num_devices = 1;
+		num_devices = 1;
 	}
 
 	/* Allocate the device array and initialize each one */
-	pr_info("Creating %u devices ...\n", zram_num_devices);
-	zram_devices = kzalloc(zram_num_devices * sizeof(struct zram), GFP_KERNEL);
+	pr_info("Creating %u devices ...\n", num_devices);
+	zram_devices = kzalloc(num_devices * sizeof(struct zram), GFP_KERNEL);
 	if (!zram_devices) {
 		ret = -ENOMEM;
 		goto unregister;
 	}
 
-	for (dev_id = 0; dev_id < zram_num_devices; dev_id++) {
+	for (dev_id = 0; dev_id < num_devices; dev_id++) {
 		ret = create_device(&zram_devices[dev_id], dev_id);
 		if (ret)
 			goto free_devices;
@@ -885,7 +889,7 @@ static void __exit zram_exit(void)
 	int i;
 	struct zram *zram;
 
-	for (i = 0; i < zram_num_devices; i++) {
+	for (i = 0; i < num_devices; i++) {
 		zram = &zram_devices[i];
 
 		destroy_device(zram);
@@ -899,8 +903,8 @@ static void __exit zram_exit(void)
 	pr_debug("Cleanup done!\n");
 }
 
-module_param(zram_num_devices, uint, 0);
-MODULE_PARM_DESC(zram_num_devices, "Number of zram devices");
+module_param(num_devices, uint, 0);
+MODULE_PARM_DESC(num_devices, "Number of zram devices");
 
 module_init(zram_init);
 module_exit(zram_exit);

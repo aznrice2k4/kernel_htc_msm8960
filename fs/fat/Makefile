@@ -2,6 +2,15 @@
 # Makefile for the Linux fat filesystem support.
 #
 
+ifdef CONFIG_CC_OPTIMIZE_ALOT
+CFLAGS_dir.o += -Os
+endif
+ifdef CONFIG_CC_OPTIMIZE_SIZE
+CFLAGS_dir.o += -Os 
+endif
+ifdef CONFIG_CC_OPTIMIZE_DEFAULT
+CFLAGS_dir.o += -Os
+endif
 
 obj-$(CONFIG_FAT_FS) += fat.o
 obj-$(CONFIG_VFAT_FS) += vfat.o

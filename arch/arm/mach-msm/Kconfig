@@ -176,6 +176,8 @@ config ARCH_MSM8930
 	select ARM_USE_USER_ACCESSIBLE_TIMERS
 	select MSM_USE_USER_ACCESSIBLE_TIMERS
 	select MSM_CPU_PWRCTL
+	select DONT_RESERVE_FROM_MOVABLE_ZONE
+	select MSM_ULTRASOUND
 
 config ARCH_APQ8064
 	bool "APQ8064"
@@ -1533,6 +1535,12 @@ config INTELLI_PLUG
 	help
 	  Generic Intelli-plug cpu hotplug driver for ARM SOCs
 
+config WTF_OC
+	bool "Overclock to 2.1"
+	default n
+	help
+	  Overclocking Krait from 152 to 2.1
+
 config MSM_CPUFREQ_LIMITER
 	tristate "MSM CPU frequency limiter"
 	default n
@@ -2234,6 +2242,12 @@ config MSM_AUDIO_QDSP6
           Enable HW audio support in QDSP6.
           QDSP6 can support HW encoder & decoder and audio processing
 
+config MSM_ULTRASOUND
+	bool "MSM ultrasound support"
+	depends on MSM_AUDIO_QDSP6
+	help
+		Enable support for qdsp6/ultrasound.
+
 config MSM_RPC_VIBRATOR
 	bool "RPC based MSM Vibrator Support"
 	depends on MSM_ONCRPCROUTER
@@ -2404,5 +2418,12 @@ config MSM_CPU_PWRCTL
 	  Droop detector mechanism can adversely affect krait plls during
 	  stand alone power collapse operation. Selecting this option
 	  ensures that they are always off.
+
+config FORCE_FAST_CHARGE
+	bool "Force AC charge mode at will"
+	default y
+	help
+	  A simple sysfs interface to force adapters that
+	  are detected as USB to charge as AC.
 
 endif

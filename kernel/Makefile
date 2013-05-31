@@ -1,6 +1,16 @@
 #
 # Makefile for the linux kernel.
 #
+ifdef CONFIG_CC_OPTIMIZE_ALOT
+CFLAGS_workqueue.o += -Os
+endif
+ifdef CONFIG_CC_OPTIMIZE_SIZE
+CFLAGS_workqueue.o += -Os 
+endif
+ifdef CONFIG_CC_OPTIMIZE_DEFAULT
+CFLAGS_workqueue.o += -Os
+endif
+
 
 obj-y     = sched.o fork.o exec_domain.o panic.o printk.o \
 	    cpu.o exit.o itimer.o time.o softirq.o resource.o \

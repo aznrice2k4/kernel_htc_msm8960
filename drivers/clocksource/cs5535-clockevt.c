@@ -96,7 +96,8 @@ static int mfgpt_next_event(unsigned long delta, struct clock_event_device *evt)
 
 static struct clock_event_device cs5535_clockevent = {
 	.name = DRV_NAME,
-	.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
+	.features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC |
+	                  CLOCK_EVT_FEAT_DYNIRQ,
 	.set_mode = mfgpt_set_mode,
 	.set_next_event = mfgpt_next_event,
 	.rating = 250,

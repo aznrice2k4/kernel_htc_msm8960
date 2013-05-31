@@ -1,7 +1,18 @@
 #
 # Makefile for the Linux nfs filesystem routines.
 #
-
+ifdef CONFIG_CC_OPTIMIZE_ALOT
+CFLAGS_nfs2xdr.o += -Os
+CFLAGS_nfs3xdr.o += -Os
+endif
+ifdef CONFIG_CC_OPTIMIZE_SIZE
+CFLAGS_nfs2xdr.o += -Os 
+CFLAGS_nfs3xdr.o += -Os
+endif
+ifdef CONFIG_CC_OPTIMIZE_DEFAULT
+CFLAGS_nfs2xdr.o += -Os
+CFLAGS_nfs3xdr.o += -Os
+endif
 obj-$(CONFIG_NFS_FS) += nfs.o
 
 nfs-y 			:= client.o dir.o file.o getroot.o inode.o super.o nfs2xdr.o \

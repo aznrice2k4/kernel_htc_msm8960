@@ -331,6 +331,8 @@ void msm_pcm_routing_reg_phy_stream(int fedai_id, int dspst_id, int stream_type)
 
 			payload.copp_ids[payload.num_copps++] =
 				msm_bedais[i].port_id;
+			srs_port_id = msm_bedais[i].port_id;
+			srs_send_params(srs_port_id, 1, 0);
 		}
 	}
 	if (payload.num_copps)
@@ -448,6 +450,8 @@ static void msm_pcm_routing_process_audio(u16 reg, u16 val, int set)
 				topology);
 			msm_pcm_routing_build_matrix(val,
 				fe_dai_map[val][session_type], path_type);
+			srs_port_id = msm_bedais[reg].port_id;
+			srs_send_params(srs_port_id, 1, 0);
 		}
 	} else {
 		if (test_bit(val, &msm_bedais[reg].fe_sessions) &&
@@ -747,6 +751,8 @@ static int msm_routing_set_srs_trumedia_control_(struct snd_kcontrol *kcontrol,
 {
 	unsigned int techs = 0;
 	unsigned short offset, value, max, index;
+
+srs_alsa_ctrl_ever_called = 1;
 
 	max = sizeof(msm_srs_trumedia_params) >> 1;
 	index = (unsigned short)((ucontrol->value.integer.value[0] &
@@ -1888,6 +1894,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"SLIMBUS_0_RX Port Mixer", "INTERNAL_FM_TX", "INT_FM_TX"},
 	{"SLIMBUS_0_RX Port Mixer", "SLIM_0_TX", "SLIMBUS_0_TX"},
 	{"SLIMBUS_0_RX Port Mixer", "AUX_PCM_UL_TX", "AUX_PCM_TX"},
+	{"SLIMBUS_0_RX Port Mixer", "MI2S_TX", "MI2S_TX"},
 	{"SLIMBUS_0_RX", NULL, "SLIMBUS_0_RX Port Mixer"},
 
 	{"AUXPCM_RX Port Mixer", "AUX_PCM_UL_TX", "AUX_PCM_TX"},

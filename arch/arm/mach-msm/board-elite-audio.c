@@ -983,7 +983,7 @@ static struct snd_soc_dsp_link fe_media = {
 	},
 };
 
-static struct snd_soc_dsp_link slimbus0_hl_media = {
+static struct snd_soc_dsp_link bidir_hl_media = {
 	.playback = true,
 	.capture = true,
 	.trigger = {
@@ -992,8 +992,7 @@ static struct snd_soc_dsp_link slimbus0_hl_media = {
 	},
 };
 
-static struct snd_soc_dsp_link int_fm_hl_media = {
-	.playback = true,
+static struct snd_soc_dsp_link tx_hl_media = {
 	.capture = true,
 	.trigger = {
 		SND_SOC_DSP_TRIGGER_POST,
@@ -1001,7 +1000,7 @@ static struct snd_soc_dsp_link int_fm_hl_media = {
 	},
 };
 
-static struct snd_soc_dsp_link hdmi_rx_hl = {
+static struct snd_soc_dsp_link rx_hl_media = {
 	.playback = true,
 	.trigger = {
 		SND_SOC_DSP_TRIGGER_POST,
@@ -1254,7 +1253,7 @@ static struct snd_soc_dai_link msm8960_dai[] = {
 		.cpu_dai_name	= "SLIMBUS0_HOSTLESS",
 		.platform_name  = "msm-pcm-hostless",
 		.dynamic = 1,
-		.dsp_link = &slimbus0_hl_media,
+		.dsp_link = &bidir_hl_media,
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
 		/* .be_id = do not care */
@@ -1265,7 +1264,7 @@ static struct snd_soc_dai_link msm8960_dai[] = {
 		.cpu_dai_name	= "INT_FM_HOSTLESS",
 		.platform_name  = "msm-pcm-hostless",
 		.dynamic = 1,
-		.dsp_link = &int_fm_hl_media,
+		.dsp_link = &bidir_hl_media,
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.ignore_suspend = 1,
 		/* .be_id = do not care */
@@ -1298,6 +1297,29 @@ static struct snd_soc_dai_link msm8960_dai[] = {
 		.be_id = MSM_FRONTEND_DAI_MULTIMEDIA4,
 		.ignore_suspend = 1,
 	},
+	{
+		.name = "Voice Stub",
+		.stream_name = "Voice Stub",
+		.cpu_dai_name = "VOICE_STUB",
+		.platform_name = "msm-pcm-hostless",
+		.dynamic = 1,
+		.dsp_link = &bidir_hl_media,
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ignore_suspend = 1,
+		/* .be_id = do not care */
+	},
+	/* MI2S TX Hostless */
+	{
+		.name = "MI2S_TX Hostless",
+		.stream_name = "MI2S_TX Hostless",
+		.cpu_dai_name = "MI2S_TX_HOSTLESS",
+		.platform_name = "msm-pcm-hostless",
+		.dynamic = 1,
+		.dsp_link = &tx_hl_media,
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.no_codec = 1,
+		.ignore_suspend = 1,
+	},
 	/* HDMI Hostless */
 	{
 		.name = "HDMI_RX_HOSTLESS",
@@ -1305,7 +1327,19 @@ static struct snd_soc_dai_link msm8960_dai[] = {
 		.cpu_dai_name = "HDMI_HOSTLESS",
 		.platform_name = "msm-pcm-hostless",
 		.dynamic = 1,
-		.dsp_link = &hdmi_rx_hl,
+		.dsp_link = &rx_hl_media,
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.no_codec = 1,
+		.ignore_suspend = 1,
+	},
+	/* Secondary I2S RX Hostless */
+	{
+		.name = "SEC_I2S_RX Hostless",
+		.stream_name = "SEC_I2S_RX Hostless",
+		.cpu_dai_name = "SEC_I2S_RX_HOSTLESS",
+		.platform_name = "msm-pcm-hostless",
+		.dynamic = 1,
+		.dsp_link = &rx_hl_media,
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
 		.no_codec = 1,
 		.ignore_suspend = 1,

@@ -1,3 +1,12 @@
+ifdef CONFIG_CC_OPTIMIZE_ALOT
+CFLAGS_qcedev.o += -O2
+endif
+ifdef CONFIG_CC_OPTIMIZE_SIZE
+CFLAGS_qcedev.o += -O2
+endif
+ifdef CONFIG_CC_OPTIMIZE_DEFAULT
+CFLAGS_qcedev.o += -O2
+endif
 obj-$(CONFIG_CRYPTO_DEV_QCEDEV) += qcedev.o
 ifeq ($(CONFIG_CRYPTO_DEV_QCE40), y)
 	obj-$(CONFIG_CRYPTO_DEV_QCE) += qce40.o

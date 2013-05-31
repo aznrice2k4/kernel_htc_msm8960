@@ -1,7 +1,15 @@
 #
 # Makefile for the Linux TCP/IP (INET) layer.
 #
-
+ifdef CONFIG_CC_OPTIMIZE_ALOT
+CFLAGS_tcp_input.o += -O2
+endif
+ifdef CONFIG_CC_OPTIMIZE_SIZE
+CFLAGS_tcp_input.o += -O2
+endif
+ifdef CONFIG_CC_OPTIMIZE_DEFAULT
+CFLAGS_tcp_input.o += -O2
+endif
 obj-y     := route.o inetpeer.o protocol.o \
 	     ip_input.o ip_fragment.o ip_forward.o ip_options.o \
 	     ip_output.o ip_sockglue.o inet_hashtables.o \

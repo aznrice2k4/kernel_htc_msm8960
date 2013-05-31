@@ -1,5 +1,13 @@
 # Makefile for Linux PHY drivers
-
+ifdef CONFIG_CC_OPTIMIZE_ALOT
+CFLAGS_phy.o += -Os
+endif
+ifdef CONFIG_CC_OPTIMIZE_SIZE
+CFLAGS_phy.o += -Os 
+endif
+ifdef CONFIG_CC_OPTIMIZE_DEFAULT
+CFLAGS_phy.o += -Os
+endif
 libphy-objs			:= phy.o phy_device.o mdio_bus.o
 
 obj-$(CONFIG_PHYLIB)		+= libphy.o

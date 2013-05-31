@@ -1,3 +1,13 @@
+ifdef CONFIG_CC_OPTIMIZE_ALOT
+CFLAGS_btcApi.o += -O2
+CFLAGS_wlan_qct_wda.o += -O2
+endif
+ifdef CONFIG_CC_OPTIMIZE_SIZE
+CFLAGS_btcApi.o += -O2
+endif
+ifdef CONFIG_CC_OPTIMIZE_DEFAULT
+CFLAGS_btcApi.o += -O2
+endif
 MODNAME := prima_wlan
 
 #Do we panic on bug?  default is to warn

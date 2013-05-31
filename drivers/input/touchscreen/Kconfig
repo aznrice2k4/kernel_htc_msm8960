@@ -497,7 +497,7 @@ config TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE_START
 config TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE_END
   depends on TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
   string "Sweep2Wake end button name"
-  default "RECENT"
+  default "HOME"
 
 config TOUCHSCREEN_TOUCHRIGHT
 	tristate "Touchright serial touchscreen"

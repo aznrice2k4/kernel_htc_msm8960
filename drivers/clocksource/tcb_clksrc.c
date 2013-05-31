@@ -149,8 +149,8 @@ static int tc_next_event(unsigned long delta, struct clock_event_device *d)
 static struct tc_clkevt_device clkevt = {
 	.clkevt	= {
 		.name		= "tc_clkevt",
-		.features	= CLOCK_EVT_FEAT_PERIODIC
-					| CLOCK_EVT_FEAT_ONESHOT,
+		.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC |
+	                  CLOCK_EVT_FEAT_DYNIRQ,
 		.shift		= 32,
 		/* Should be lower than at91rm9200's system timer */
 		.rating		= 125,

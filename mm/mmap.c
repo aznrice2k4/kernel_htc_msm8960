@@ -515,6 +515,7 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
  * acquired
  */
 	uksm_remove_vma(vma);
+
 	if (next && !insert) {
 		struct vm_area_struct *exporter = NULL;
 
