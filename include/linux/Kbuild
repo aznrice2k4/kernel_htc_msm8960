@@ -423,3 +423,4 @@ header-y += ashmem.h
 header-y += genlock.h
 header-y += ion.h
 header-y += qcedev.h
+header-y += regmap.h
